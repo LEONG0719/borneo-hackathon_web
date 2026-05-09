@@ -34,6 +34,8 @@ export default function AlertHeader() {
     const searchParams = useSearchParams();
     const [activeFilter, setActiveFilter] = useState("all"); // Active Filter State (Default to "All Threats")
     const [activeState, setActiveState] = useState("all");
+    const [activeSeverity, setActiveSeverity] = useState("all");
+    const [activeTimeOrder, setActiveTimeOrder] = useState("newest");
     const [displayMode, setDisplayMode] = useState("list"); // "List" or "Map" Mode State (Default to "List")
     const [focusedAlert, setFocusedAlert] = useState<AlertItemInfo | null>(null); // Alert to zoom into on map.
     const [currentPage, setCurrentPage] = useState(1);
@@ -41,42 +43,77 @@ export default function AlertHeader() {
     
     const { alerts, isLoading } = useAlertsData();
     const skeletonCards = Array.from({ length: 4 });
-    const filteredAlerts = useMemo(
-        () =>
-            alerts.filter((item) =>
+    const filteredAlerts = useMemo(() => {
+        const nextAlerts = alerts.filter((item) =>
                 (activeFilter === "all" ||
                     (activeFilter === "other"
                         ? !["flood", "landslide", "tidal"].includes(item.hazardType)
                         : item.hazardType === activeFilter)) &&
-                (activeState === "all" || item.stateName === activeState)
-            ),
-        [activeFilter, activeState, alerts]
-    );
+                (activeState === "all" || item.stateName === activeState) &&
+                (activeSeverity === "all" || item.severity.toLocaleLowerCase() === activeSeverity)
+            );
+
+        nextAlerts.sort((left, right) => {
+            const leftTime = new Date(left.createdAt || `${left.date}T${left.time}`).getTime();
+            const rightTime = new Date(right.createdAt || `${right.date}T${right.time}`).getTime();
+            const safeLeftTime = Number.isNaN(leftTime) ? 0 : leftTime;
+            const safeRightTime = Number.isNaN(rightTime) ? 0 : rightTime;
+
+            return activeTimeOrder === "oldest"
+                ? safeLeftTime - safeRightTime
+                : safeRightTime - safeLeftTime;
+        });
+
+        return nextAlerts;
+    }, [activeFilter, activeSeverity, activeState, activeTimeOrder, alerts]);
     const totalPages = Math.max(1, Math.ceil(filteredAlerts.length / ALERTS_PER_PAGE));
+    const safeCurrentPage = Math.min(currentPage, totalPages);
     const paginatedAlerts = useMemo(() => {
-        const startIndex = (currentPage - 1) * ALERTS_PER_PAGE;
+        const startIndex = (safeCurrentPage - 1) * ALERTS_PER_PAGE;
         return filteredAlerts.slice(startIndex, startIndex + ALERTS_PER_PAGE);
-    }, [currentPage, filteredAlerts]);
+    }, [filteredAlerts, safeCurrentPage]);
     const visiblePages = useMemo(() => {
         if (totalPages <= 5) {
             return Array.from({ length: totalPages }, (_, index) => index + 1);
         }
 
-        const startPage = Math.max(1, Math.min(currentPage - 2, totalPages - 4));
+        const startPage = Math.max(1, Math.min(safeCurrentPage - 2, totalPages - 4));
         return Array.from({ length: 5 }, (_, index) => startPage + index);
-    }, [currentPage, totalPages]);
+    }, [safeCurrentPage, totalPages]);
+    const handleFilterChange = (value: string) => {
+        setActiveFilter(value);
+        setCurrentPage(1);
+    };
+    const handleStateChange = (value: string) => {
+        setActiveState(value);
+        setCurrentPage(1);
+    };
+    const handleSeverityChange = (value: string) => {
+        setActiveSeverity(value);
+        setCurrentPage(1);
+    };
+    const handleTimeOrderChange = (value: string) => {
+        setActiveTimeOrder(value);
+        setCurrentPage(1);
+    };
+    const handleResetFilters = () => {
+        setActiveFilter("all");
+        setActiveState("all");
+        setActiveSeverity("all");
+        setActiveTimeOrder("newest");
+        setCurrentPage(1);
+    };
+    const isResetDisabled =
+        activeFilter === "all" &&
+        activeState === "all" &&
+        activeSeverity === "all" &&
+        activeTimeOrder === "newest";
 
     useEffect(() => {
         const alertId = searchParams.get("alert");
         if (!alertId || isLoading || alerts.length === 0) return;
 
-        setDisplayMode("list");
-        setActiveFilter("all");
-
         const alertIndex = alerts.findIndex((item, index) => (item.id || `${item.lat}-${item.lng}-${index}`) === alertId);
-        if (alertIndex >= 0) {
-            setCurrentPage(Math.floor(alertIndex / ALERTS_PER_PAGE) + 1);
-        }
 
         const scrollToAlert = () => {
             const el = alertRefs.current.get(alertId);
@@ -85,19 +122,24 @@ export default function AlertHeader() {
             }
         };
 
-        const timer = window.setTimeout(scrollToAlert, 100);
-        return () => window.clearTimeout(timer);
+        let scrollTimer: number | undefined;
+        const stateTimer = window.setTimeout(() => {
+            setDisplayMode("list");
+            setActiveFilter("all");
+            setActiveSeverity("all");
+
+            if (alertIndex >= 0) {
+                setCurrentPage(Math.floor(alertIndex / ALERTS_PER_PAGE) + 1);
+            }
+
+            scrollTimer = window.setTimeout(scrollToAlert, 100);
+        }, 0);
+
+        return () => {
+            window.clearTimeout(stateTimer);
+            if (scrollTimer) window.clearTimeout(scrollTimer);
+        };
     }, [alerts, isLoading, searchParams]);
-
-    useEffect(() => {
-        setCurrentPage(1);
-    }, [activeFilter, activeState]);
-
-    useEffect(() => {
-        if (currentPage > totalPages) {
-            setCurrentPage(totalPages);
-        }
-    }, [currentPage, totalPages]);
 
     return (
         <div className="flex flex-col gap-10 p-10">
@@ -122,10 +164,16 @@ export default function AlertHeader() {
             {/* --- Filter --- */}
             <AlertFilter
                 activeFilter={activeFilter}
-                onFilterChange={setActiveFilter}
+                onFilterChange={handleFilterChange}
                 activeState={activeState}
                 stateOptions={MALAYSIA_STATE_OPTIONS}
-                onStateChange={setActiveState}
+                onStateChange={handleStateChange}
+                activeSeverity={activeSeverity}
+                onSeverityChange={handleSeverityChange}
+                activeTimeOrder={activeTimeOrder}
+                onTimeOrderChange={handleTimeOrderChange}
+                onResetFilters={handleResetFilters}
+                isResetDisabled={isResetDisabled}
             />
 
             {/* --- Alert List or Map --- */}
@@ -157,7 +205,7 @@ export default function AlertHeader() {
                         ) : (
                             <>
                                 {paginatedAlerts.map((item, index) => {
-                                const absoluteIndex = (currentPage - 1) * ALERTS_PER_PAGE + index;
+                                const absoluteIndex = (safeCurrentPage - 1) * ALERTS_PER_PAGE + index;
                                 const key = item.id || `${item.lat}-${item.lng}-${absoluteIndex}`;
                                 return (
                                     <div key={key} ref={(el) => { if (el) alertRefs.current.set(key, el); }}>
@@ -171,14 +219,14 @@ export default function AlertHeader() {
 
                                 <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl border border-foreground/10 bg-white px-4 py-4 shadow-sm">
                                     <span className="text-sm font-semibold text-textGrey">
-                                        Page {currentPage} of {totalPages}
+                                        Page {safeCurrentPage} of {totalPages}
                                     </span>
                                     <div className="flex items-center gap-2">
                                         <button
                                             type="button"
                                             aria-label="Go to first page"
                                             onClick={() => setCurrentPage(1)}
-                                            disabled={currentPage === 1}
+                                            disabled={safeCurrentPage === 1}
                                             className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-foreground/10 px-3 text-sm font-bold text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
                                         >
                                             {"<<"}
@@ -186,7 +234,7 @@ export default function AlertHeader() {
                                         <button
                                             type="button"
                                             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
-                                            disabled={currentPage === 1}
+                                            disabled={safeCurrentPage === 1}
                                             className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-foreground/10 px-3 text-sm font-bold text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
                                         >
                                             {"<"}
@@ -197,7 +245,7 @@ export default function AlertHeader() {
                                                 type="button"
                                                 onClick={() => setCurrentPage(pageNumber)}
                                                 className={`flex h-10 min-w-10 items-center justify-center rounded-xl px-3 text-sm font-bold transition ${
-                                                    pageNumber === currentPage
+                                                    pageNumber === safeCurrentPage
                                                         ? "bg-primary text-white"
                                                         : "border border-foreground/10 text-foreground hover:bg-foreground/5"
                                                 }`}
@@ -208,7 +256,7 @@ export default function AlertHeader() {
                                         <button
                                             type="button"
                                             onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
-                                            disabled={currentPage === totalPages}
+                                            disabled={safeCurrentPage === totalPages}
                                             className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-foreground/10 px-3 text-sm font-bold text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
                                         >
                                             {">"}
@@ -217,7 +265,7 @@ export default function AlertHeader() {
                                             type="button"
                                             aria-label="Go to last page"
                                             onClick={() => setCurrentPage(totalPages)}
-                                            disabled={currentPage === totalPages}
+                                            disabled={safeCurrentPage === totalPages}
                                             className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-foreground/10 px-3 text-sm font-bold text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
                                         >
                                             {">>"}
