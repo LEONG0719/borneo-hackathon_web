@@ -176,6 +176,15 @@ export default function AlertHeader() {
                                     <div className="flex items-center gap-2">
                                         <button
                                             type="button"
+                                            aria-label="Go to first page"
+                                            onClick={() => setCurrentPage(1)}
+                                            disabled={currentPage === 1}
+                                            className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-foreground/10 px-3 text-sm font-bold text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            {"<<"}
+                                        </button>
+                                        <button
+                                            type="button"
                                             onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                                             disabled={currentPage === 1}
                                             className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-foreground/10 px-3 text-sm font-bold text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
@@ -203,6 +212,15 @@ export default function AlertHeader() {
                                             className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-foreground/10 px-3 text-sm font-bold text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
                                         >
                                             {">"}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            aria-label="Go to last page"
+                                            onClick={() => setCurrentPage(totalPages)}
+                                            disabled={currentPage === totalPages}
+                                            className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-foreground/10 px-3 text-sm font-bold text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
+                                        >
+                                            {">>"}
                                         </button>
                                     </div>
                                 </div>

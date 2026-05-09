@@ -23,6 +23,8 @@ import {
   STATUS_OPTIONS,
 } from "./components/alertPage.utils";
 
+const ALERTS_PER_PAGE = 5;
+
 export default function AdminAlertsPage() {
   const { userId } = useUserContext();
   const [alerts, setAlerts] = useState<AlertItemInfo[]>([]);
@@ -38,6 +40,7 @@ export default function AdminAlertsPage() {
   const [hazardFilter, setHazardFilter] = useState("all");
   const [stateFilter, setStateFilter] = useState("all");
   const [orderFilter, setOrderFilter] = useState("newest");
+  const [currentPage, setCurrentPage] = useState(1);
 
   const handleResetFilters = useCallback(() => {
     setSourceFilter("all");
@@ -46,6 +49,37 @@ export default function AdminAlertsPage() {
     setHazardFilter("all");
     setStateFilter("all");
     setOrderFilter("newest");
+    setCurrentPage(1);
+  }, []);
+
+  const handleSourceChange = useCallback((value: string) => {
+    setSourceFilter(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleStatusFilterChange = useCallback((value: string) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleSeverityChange = useCallback((value: string) => {
+    setSeverityFilter(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleHazardChange = useCallback((value: string) => {
+    setHazardFilter(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleStateChange = useCallback((value: string) => {
+    setStateFilter(value);
+    setCurrentPage(1);
+  }, []);
+
+  const handleOrderChange = useCallback((value: string) => {
+    setOrderFilter(value);
+    setCurrentPage(1);
   }, []);
 
   const loadAlerts = useCallback(async () => {
@@ -153,6 +187,20 @@ export default function AdminAlertsPage() {
     stateFilter,
     statusFilter,
   ]);
+  const totalPages = Math.max(1, Math.ceil(filteredAlerts.length / ALERTS_PER_PAGE));
+  const safeCurrentPage = Math.min(currentPage, totalPages);
+  const paginatedAlerts = useMemo(() => {
+    const startIndex = (safeCurrentPage - 1) * ALERTS_PER_PAGE;
+    return filteredAlerts.slice(startIndex, startIndex + ALERTS_PER_PAGE);
+  }, [filteredAlerts, safeCurrentPage]);
+  const visiblePages = useMemo(() => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
+    }
+
+    const startPage = Math.max(1, Math.min(safeCurrentPage - 2, totalPages - 4));
+    return Array.from({ length: 5 }, (_, index) => startPage + index);
+  }, [safeCurrentPage, totalPages]);
 
   async function handleStatusChange(alert: AlertItemInfo, nextStatus: AlertStatus) {
     if (!alert.id) {
@@ -266,12 +314,12 @@ export default function AdminAlertsPage() {
         hazardOptions={hazardOptions}
         stateOptions={stateOptions}
         orderOptions={ORDER_OPTIONS}
-        onSourceChange={setSourceFilter}
-        onStatusChange={setStatusFilter}
-        onSeverityChange={setSeverityFilter}
-        onHazardChange={setHazardFilter}
-        onStateChange={setStateFilter}
-        onOrderChange={setOrderFilter}
+        onSourceChange={handleSourceChange}
+        onStatusChange={handleStatusFilterChange}
+        onSeverityChange={handleSeverityChange}
+        onHazardChange={handleHazardChange}
+        onStateChange={handleStateChange}
+        onOrderChange={handleOrderChange}
         onResetFilters={handleResetFilters}
       />
 
@@ -283,7 +331,7 @@ export default function AdminAlertsPage() {
         <AlertsEmptyState variant="noResults" />
       ) : (
         <div className="flex flex-col gap-4">
-          {filteredAlerts.map((alert) => {
+          {paginatedAlerts.map((alert) => {
             const feedback = alert.id ? feedbackById[alert.id] : null;
             const isProcessing = Boolean(alert.id && processingById[alert.id]);
 
@@ -297,6 +345,62 @@ export default function AdminAlertsPage() {
               />
             );
           })}
+
+          <div className="mt-6 flex flex-col items-center gap-3 rounded-2xl border border-foreground/10 bg-white px-4 py-4 shadow-sm">
+            <span className="text-sm font-semibold text-textGrey">
+              Page {safeCurrentPage} of {totalPages}
+            </span>
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <button
+                type="button"
+                aria-label="Go to first page"
+                onClick={() => setCurrentPage(1)}
+                disabled={safeCurrentPage === 1}
+                className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-foreground/10 px-3 text-sm font-bold text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {"<<"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                disabled={safeCurrentPage === 1}
+                className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-foreground/10 px-3 text-sm font-bold text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {"<"}
+              </button>
+              {visiblePages.map((pageNumber) => (
+                <button
+                  key={pageNumber}
+                  type="button"
+                  onClick={() => setCurrentPage(pageNumber)}
+                  className={`flex h-10 min-w-10 items-center justify-center rounded-xl px-3 text-sm font-bold transition ${
+                    pageNumber === safeCurrentPage
+                      ? "bg-primary text-white"
+                      : "border border-foreground/10 text-foreground hover:bg-foreground/5"
+                  }`}
+                >
+                  {pageNumber}
+                </button>
+              ))}
+              <button
+                type="button"
+                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                disabled={safeCurrentPage === totalPages}
+                className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-foreground/10 px-3 text-sm font-bold text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {">"}
+              </button>
+              <button
+                type="button"
+                aria-label="Go to last page"
+                onClick={() => setCurrentPage(totalPages)}
+                disabled={safeCurrentPage === totalPages}
+                className="flex h-10 min-w-10 items-center justify-center rounded-xl border border-foreground/10 px-3 text-sm font-bold text-foreground transition hover:bg-foreground/5 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {">>"}
+              </button>
+            </div>
+          </div>
         </div>
       )}
     </div>
