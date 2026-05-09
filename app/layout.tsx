@@ -1,5 +1,6 @@
 import "./globals.css";
 import AuthListener from "@/app/api/auth/verification/authUtils";
+import SessionListener from "@/app/api/auth/verification/SessionListener";
 import UserIdProvider from "./provider/UserIdProvider";
 import LayoutShell from "@/app/components/LayoutShell";
 
@@ -33,6 +34,7 @@ export default function RootLayout({
       <body className="antialiased">
         <UserIdProvider>
           <AuthListener />
+          <SessionListener />
           <LayoutShell>{children}</LayoutShell>
         </UserIdProvider>
       </body>

@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import TuneRoundedIcon from "@mui/icons-material/TuneRounded";
 import { SelectOption } from "./alertPage.utils";
 
 type FilterSelectProps = {
   label: string;
+  iconType: "source" | "status" | "severity" | "hazard" | "state" | "order";
   value: string;
   options: SelectOption[];
   onChange: (value: string) => void;
@@ -31,9 +33,95 @@ type AlertsFiltersPanelProps = {
   onStateChange: (value: string) => void;
   onOrderChange: (value: string) => void;
   onResetFilters: () => void;
+  isResetDisabled: boolean;
 };
 
-function FilterSelect({ label, value, options, onChange }: FilterSelectProps) {
+const STATE_FLAG_BY_VALUE: Record<string, string> = {
+  all: "/assets/flag-malaysia.svg",
+  Johor: "/assets/flag-johor.svg",
+  Kedah: "/assets/flag-kedah.svg",
+  Kelantan: "/assets/flag-kelantan.svg",
+  "Kuala Lumpur": "/assets/flag-kuala-lumpur.svg",
+  Labuan: "/assets/flag-labuan.svg",
+  Melaka: "/assets/flag-melaka.svg",
+  "Negeri Sembilan": "/assets/flag-negeri-sembilan.svg",
+  Pahang: "/assets/flag-pahang.svg",
+  Perak: "/assets/flag-perak.svg",
+  Perlis: "/assets/flag-perlis.svg",
+  "Pulau Pinang": "/assets/flag-pulau-pinang.svg",
+  Putrajaya: "/assets/flag-putrajaya.svg",
+  Sabah: "/assets/flag-sabah.svg",
+  Sarawak: "/assets/flag-sarawak.svg",
+  Selangor: "/assets/flag-selangor.svg",
+  Terengganu: "/assets/flag-terengganu.svg",
+};
+
+function getOptionIcon(iconType: FilterSelectProps["iconType"], value: string) {
+  const normalizedValue = value.toLowerCase();
+
+  if (iconType === "source") {
+    if (normalizedValue === "third_party_api") return { icon: "cloud_sync", color: "#0284C7" };
+    if (normalizedValue === "user_report") return { icon: "person_alert", color: "#D97706" };
+    return { icon: "hub", color: "#2D6A4F" };
+  }
+
+  if (iconType === "status") {
+    if (normalizedValue === "published") return { icon: "published_with_changes", color: "#059669" };
+    if (normalizedValue === "draft") return { icon: "edit_note", color: "#64748B" };
+    return { icon: "rule", color: "#2D6A4F" };
+  }
+
+  if (iconType === "severity") {
+    if (normalizedValue === "priority") return { icon: "warning", color: "#EF4444" };
+    if (normalizedValue === "warning") return { icon: "error", color: "#D97706" };
+    if (normalizedValue === "monitor") return { icon: "visibility", color: "#3B82F6" };
+    return { icon: "priority_high", color: "#95D5B2" };
+  }
+
+  if (iconType === "hazard") {
+    if (normalizedValue === "flood") return { icon: "water_drop", color: "#3B82F6" };
+    if (normalizedValue === "landslide") return { icon: "landslide", color: "#D97706" };
+    if (normalizedValue === "tidal") return { icon: "tsunami", color: "#22D3EE" };
+    if (normalizedValue === "other") return { icon: "warning", color: "#EF4444" };
+    return { icon: "category", color: "#95D5B2" };
+  }
+
+  if (iconType === "state") {
+    return { icon: normalizedValue === "all" ? "public" : "location_on", color: "#2D6A4F" };
+  }
+
+  if (normalizedValue === "oldest") return { icon: "north", color: "#2D6A4F" };
+  return { icon: "south", color: "#2D6A4F" };
+}
+
+function FilterOptionIcon({
+  iconType,
+  value,
+  isActive = false,
+  size = 18,
+}: {
+  iconType: FilterSelectProps["iconType"];
+  value: string;
+  isActive?: boolean;
+  size?: number;
+}) {
+  if (iconType === "state" && STATE_FLAG_BY_VALUE[value]) {
+    return <Image src={STATE_FLAG_BY_VALUE[value]} alt="" width={20} height={14} className="w-5" />;
+  }
+
+  const optionIcon = getOptionIcon(iconType, value);
+
+  return (
+    <span
+      className="material-symbols-outlined"
+      style={{ color: isActive ? undefined : optionIcon.color, fontSize: size }}
+    >
+      {optionIcon.icon}
+    </span>
+  );
+}
+
+function FilterSelect({ label, iconType, value, options, onChange }: FilterSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement | null>(null);
   const selectedOption = options.find((option) => option.value === value) ?? options[0];
@@ -62,12 +150,15 @@ function FilterSelect({ label, value, options, onChange }: FilterSelectProps) {
         onClick={() => setIsOpen((open) => !open)}
         className="flex w-full items-center justify-between rounded-[1.75rem] border border-foreground/10 bg-linear-to-r from-white to-primary/5 px-4 py-3 text-left shadow-sm transition hover:border-primary/30 hover:shadow-md"
       >
-        <span className="flex min-w-0 flex-col">
-          <span className="text-[11px] font-semibold uppercase tracking-wide text-textGrey">
-            {label}
-          </span>
-          <span className="truncate text-sm font-semibold text-foreground">
-            {selectedOption?.label ?? options[0]?.label ?? "Select"}
+        <span className="flex min-w-0 items-center gap-3">
+          <FilterOptionIcon iconType={iconType} value={selectedOption?.value ?? value} size={22} />
+          <span className="flex min-w-0 flex-col">
+            <span className="text-[11px] font-semibold uppercase tracking-wide text-textGrey">
+              {label}
+            </span>
+            <span className="truncate text-sm font-semibold text-foreground">
+              {selectedOption?.label ?? options[0]?.label ?? "Select"}
+            </span>
           </span>
         </span>
         <span
@@ -99,7 +190,14 @@ function FilterSelect({ label, value, options, onChange }: FilterSelectProps) {
                       : "text-foreground hover:bg-primary/8"
                   }`}
                 >
-                  <span>{option.label}</span>
+                  <span className="flex items-center gap-3">
+                    <FilterOptionIcon
+                      iconType={iconType}
+                      value={option.value}
+                      isActive={isActive}
+                    />
+                    <span>{option.label}</span>
+                  </span>
                   {isActive && (
                     <span className="material-symbols-outlined" style={{ fontSize: 18 }}>
                       check
@@ -135,6 +233,7 @@ export default function AlertsFiltersPanel({
   onStateChange,
   onOrderChange,
   onResetFilters,
+  isResetDisabled,
 }: AlertsFiltersPanelProps) {
   return (
     <div className="rounded-[2rem] border border-foreground/10 bg-white p-6 shadow-sm">
@@ -154,7 +253,8 @@ export default function AlertsFiltersPanel({
         <button
           type="button"
           onClick={onResetFilters}
-          className="rounded-full border border-foreground/10 px-4 py-2 text-sm font-semibold text-textGrey transition hover:border-primary/30 hover:bg-primary/8 hover:text-primary"
+          disabled={isResetDisabled}
+          className="rounded-full border border-foreground/10 px-4 py-2 text-sm font-semibold text-textGrey transition hover:border-primary/30 hover:bg-primary/8 hover:text-primary disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:border-foreground/10 disabled:hover:bg-transparent disabled:hover:text-textGrey"
         >
           Reset filter
         </button>
@@ -163,36 +263,42 @@ export default function AlertsFiltersPanel({
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         <FilterSelect
           label="Source"
+          iconType="source"
           value={sourceFilter}
           options={sourceOptions}
           onChange={onSourceChange}
         />
         <FilterSelect
           label="Status"
+          iconType="status"
           value={statusFilter}
           options={statusOptions}
           onChange={onStatusChange}
         />
         <FilterSelect
           label="Severity"
+          iconType="severity"
           value={severityFilter}
           options={severityOptions}
           onChange={onSeverityChange}
         />
         <FilterSelect
           label="Hazard Type"
+          iconType="hazard"
           value={hazardFilter}
           options={hazardOptions}
           onChange={onHazardChange}
         />
         <FilterSelect
           label="State"
+          iconType="state"
           value={stateFilter}
           options={stateOptions}
           onChange={onStateChange}
         />
         <FilterSelect
           label="Date Order"
+          iconType="order"
           value={orderFilter}
           options={orderOptions}
           onChange={onOrderChange}

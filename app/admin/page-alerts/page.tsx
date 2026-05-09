@@ -290,6 +290,13 @@ export default function AdminAlertsPage() {
 
   const hasAlerts = alerts.length > 0;
   const hasFilteredAlerts = filteredAlerts.length > 0;
+  const isResetDisabled =
+    sourceFilter === "all" &&
+    statusFilter === "all" &&
+    severityFilter === "all" &&
+    hazardFilter === "all" &&
+    stateFilter === "all" &&
+    orderFilter === "newest";
 
   return (
     <div className="flex flex-col gap-8 p-10">
@@ -321,6 +328,7 @@ export default function AdminAlertsPage() {
         onStateChange={handleStateChange}
         onOrderChange={handleOrderChange}
         onResetFilters={handleResetFilters}
+        isResetDisabled={isResetDisabled}
       />
 
       {error && !hasAlerts ? (

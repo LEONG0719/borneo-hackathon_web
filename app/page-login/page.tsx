@@ -5,6 +5,10 @@ import Image from "next/image";
 import Link from "next/link";
 import { Login } from "@/app/api/auth/verification/authUtils"; // Adjust path if necessary!
 
+const REMEMBER_ME_EMAIL_KEY = "borneo.auth.remembered_email";
+const REMEMBER_ME_PASSWORD_KEY = "borneo.auth.remembered_password";
+const REMEMBER_ME_PREFERENCE_KEY = "borneo.auth.remember_me";
+
 // --- REUSABLE FORM COMPONENT ---
 const FormContent = ({
   mode,
@@ -30,6 +34,7 @@ const FormContent = ({
   const [showPassword, setShowPassword] = useState(false);
   const [isOtpSent, setIsOtpSent] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
+  const [rememberMe, setRememberMe] = useState(true);
   // --- Backend Hook ---
   const { 
     sendMagicLink, 
@@ -47,6 +52,41 @@ const FormContent = ({
     setMessage(null);
     setIsOtpSent(false);
   }, [mode, loginMethod, setMessage]);
+
+  useEffect(() => {
+    if (!isLoginMode) {
+      return;
+    }
+
+    const savedPreference = localStorage.getItem(REMEMBER_ME_PREFERENCE_KEY);
+    if (savedPreference !== null) {
+      setRememberMe(savedPreference === "true");
+    }
+
+    const rememberedEmail = localStorage.getItem(REMEMBER_ME_EMAIL_KEY);
+    const rememberedPassword = localStorage.getItem(REMEMBER_ME_PASSWORD_KEY);
+
+    if (rememberedEmail) {
+      setEmail(rememberedEmail);
+    }
+
+    if (rememberedPassword) {
+      setPassword(rememberedPassword);
+    }
+  }, [isLoginMode]);
+
+  const persistRememberedCredentials = (loginEmail: string, loginPassword: string) => {
+    localStorage.setItem(REMEMBER_ME_PREFERENCE_KEY, String(rememberMe));
+
+    if (rememberMe) {
+      localStorage.setItem(REMEMBER_ME_EMAIL_KEY, loginEmail);
+      localStorage.setItem(REMEMBER_ME_PASSWORD_KEY, loginPassword);
+      return;
+    }
+
+    localStorage.removeItem(REMEMBER_ME_EMAIL_KEY);
+    localStorage.removeItem(REMEMBER_ME_PASSWORD_KEY);
+  };
 
   // --- Validation Logic ---
   const isPasswordLongEnough = password.length >= 8;
@@ -100,6 +140,8 @@ const FormContent = ({
         
         if (res.success && res.user) { 
           setIsRedirecting(true); 
+
+          persistRememberedCredentials(email, password);
 
           // 🚨 THE FIX: Manually explicitly save the token so your profile page can read it!
           // (Note: If your custom hook returns the token as `res.token` instead of `res.session.access_token`, update the variable name below!)
@@ -255,6 +297,25 @@ const FormContent = ({
                 </div>
               </div>
             )}
+
+            <label className="flex items-center gap-2 px-3 py-1 text-xs font-medium text-gray-600 select-none">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => {
+                  const nextRememberMe = e.target.checked;
+                  setRememberMe(nextRememberMe);
+                  localStorage.setItem(REMEMBER_ME_PREFERENCE_KEY, String(nextRememberMe));
+
+                  if (!nextRememberMe) {
+                    localStorage.removeItem(REMEMBER_ME_EMAIL_KEY);
+                    localStorage.removeItem(REMEMBER_ME_PASSWORD_KEY);
+                  }
+                }}
+                className="h-4 w-4 rounded border-gray-300 accent-[#183d2e] focus:ring-[#183d2e]/30"
+              />
+              Remember me
+            </label>
           </>
         ) : (
           
