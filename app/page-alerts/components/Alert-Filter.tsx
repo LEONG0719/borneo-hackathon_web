@@ -19,8 +19,8 @@ const severityOptions: FilterOption[] = [
 ];
 
 const timeOrderOptions: FilterOption[] = [
-    { label: "Newest First", icon: "south", color: "#2D6A4F", value: "newest" },
-    { label: "Oldest First", icon: "north", color: "#2D6A4F", value: "oldest" },
+    { label: "Newest First", icon: "south", color: "#FFFFFF", value: "newest" },
+    { label: "Oldest First", icon: "north", color: "#FFFFFF", value: "oldest" },
 ];
 
 type FilterOption = {

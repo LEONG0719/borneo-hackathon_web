@@ -73,12 +73,12 @@ export default function AlertHeader() {
         return filteredAlerts.slice(startIndex, startIndex + ALERTS_PER_PAGE);
     }, [filteredAlerts, safeCurrentPage]);
     const visiblePages = useMemo(() => {
-        if (totalPages <= 5) {
+        if (totalPages <= 3) {
             return Array.from({ length: totalPages }, (_, index) => index + 1);
         }
 
-        const startPage = Math.max(1, Math.min(safeCurrentPage - 2, totalPages - 4));
-        return Array.from({ length: 5 }, (_, index) => startPage + index);
+        const startPage = Math.max(1, Math.min(safeCurrentPage - 1, totalPages - 2));
+        return Array.from({ length: 3 }, (_, index) => startPage + index);
     }, [safeCurrentPage, totalPages]);
     const handleFilterChange = (value: string) => {
         setActiveFilter(value);
@@ -221,7 +221,7 @@ export default function AlertHeader() {
                                     <span className="text-sm font-semibold text-textGrey">
                                         Page {safeCurrentPage} of {totalPages}
                                     </span>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center justify-center gap-2">
                                         <button
                                             type="button"
                                             aria-label="Go to first page"

@@ -194,12 +194,12 @@ export default function AdminAlertsPage() {
     return filteredAlerts.slice(startIndex, startIndex + ALERTS_PER_PAGE);
   }, [filteredAlerts, safeCurrentPage]);
   const visiblePages = useMemo(() => {
-    if (totalPages <= 5) {
+    if (totalPages <= 3) {
       return Array.from({ length: totalPages }, (_, index) => index + 1);
     }
 
-    const startPage = Math.max(1, Math.min(safeCurrentPage - 2, totalPages - 4));
-    return Array.from({ length: 5 }, (_, index) => startPage + index);
+    const startPage = Math.max(1, Math.min(safeCurrentPage - 1, totalPages - 2));
+    return Array.from({ length: 3 }, (_, index) => startPage + index);
   }, [safeCurrentPage, totalPages]);
 
   async function handleStatusChange(alert: AlertItemInfo, nextStatus: AlertStatus) {
